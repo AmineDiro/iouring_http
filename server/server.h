@@ -1,0 +1,1 @@
+int ring_init();

@@ -1,18 +1,22 @@
 package main
 
-//#cgo LDFLAGS: -luring
-//#include "server.h"
-//#include <liburing.h>
-import "C"
-
-import "fmt"
+import (
+	"fmt"
+	"github/aminediro/iouring_server/server"
+)
 
 func main() {
-	r := RingInit()
-	fmt.Println("new ring", r)
-}
+	l, _ := server.MKRingListener()
+	fmt.Println("new ring", l)
 
-func RingInit() int {
-	r := int(C.queue_init())
-	return r
+	// HTTP Server using Liburing
+
+	// Create a Ring
+
+	// Create a Socket(filedesc)
+	// Setup a ring-based Socker listener (fd)
+	/// Should implement : Accept() - Addr() - Close()
+	///
+
+	// Pass the Listener to an HttpMux Server
 }
