@@ -35,17 +35,25 @@ int ring_init()
 
 int ring_accept(int socket_fd)
 {
-    fprintf(stderr, "Entered ring_accept");
     struct io_uring_cqe *cqe;
 
+    accept_entry(socket_fd);
     // Accept entries
     while (true)
     {
-        accept_entry(socket_fd);
         int peek = io_uring_peek_cqe(&ring, &cqe);
-        if (!peek)
+        if (peek == 0)
         {
+            // The FD of the connections
+            int conn_fd =cqe->res;
+
+            fprintf(stderr, "Received connection %d",conn_fd);
         }
         io_uring_cqe_seen(&ring, cqe);
     }
+}
+
+
+void ring_close(){
+    io_uring_queue_exit(&ring);
 }

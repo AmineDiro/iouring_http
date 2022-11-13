@@ -31,3 +31,7 @@ func MkRing(socketFD int) (*IOURing, error) {
 func (r *IOURing) accept() {
 	go C.ring_accept(C.int(r.socketFD))
 }
+
+func (r *IOURing) Close() {
+	C.ring_close()
+}
