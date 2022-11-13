@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github/aminediro/iouring_server/server"
+
+	"github.com/aminediro/iouring_server/server"
 )
 
 func main() {
