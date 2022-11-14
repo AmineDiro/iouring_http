@@ -7,13 +7,28 @@ import (
 )
 
 const (
-	MAXCONN int = 10000
+	MAXCONN     int = 10000
+	SOReuseport int = 0x0F
 )
 
 type RingListener struct {
 	socketFD int
 	ring     *IOURing
 	conns    chan net.Conn
+}
+
+// Increase resources limitations
+
+func IncreaseResources() {
+	var rLimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
+	}
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
+	}
+
 }
 
 func MKRingListener(addr string) (*RingListener, error) {
@@ -24,11 +39,11 @@ func MKRingListener(addr string) (*RingListener, error) {
 	}
 	// Creating Ring
 	ring, err := MkRing(socketFD)
-	ring.accept()
-
 	if err != nil {
 		return nil, err
 	}
+	// Run the accept and printing of conns
+	ring.Run()
 
 	return &RingListener{
 		socketFD: socketFD,
@@ -70,7 +85,13 @@ func bindTCPSocket(address string) (int, error) {
 		Port: netAddr.Port,
 		Addr: ipAddr,
 	}
+	// Set socket options
 
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, SOReuseport, 1)
+	if err != nil {
+		syscall.Close(fd)
+		return -1, err
+	}
 	// Bind socket to the adress
 	if err := syscall.Bind(fd, sockAddr); err != nil {
 		syscall.Close(fd)
