@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"syscall"
 )
@@ -42,8 +43,6 @@ func MKRingListener(addr string) (*RingListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Run the accept and printing of conns
-	ring.Run()
 
 	return &RingListener{
 		socketFD: socketFD,
@@ -56,7 +55,11 @@ func MKRingListener(addr string) (*RingListener, error) {
 func (rl *RingListener) Accept() (net.Conn, error) { return <-rl.conns, nil }
 
 // Closes the listener
-func (rl *RingListener) Close() error { return nil }
+func (rl *RingListener) Close() error {
+	log.Println("Closing the ring")
+	rl.ring.Close()
+	return nil
+}
 
 // Gets the formated address
 func (rl *RingListener) Addr() net.Addr { return nil }
@@ -64,6 +67,8 @@ func (rl *RingListener) Addr() net.Addr { return nil }
 // Start Listening by calling into the C liburing
 // Either we continuously submit
 func (rl *RingListener) Listen() {
+	// Run the accept and printing of conns
+	rl.ring.Run()
 }
 
 // Starts a socket and binds it to the address
@@ -87,7 +92,7 @@ func bindTCPSocket(address string) (int, error) {
 	}
 	// Set socket options
 
-	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, SOReuseport, 1)
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 	if err != nil {
 		syscall.Close(fd)
 		return -1, err

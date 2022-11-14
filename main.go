@@ -4,18 +4,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
+
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/aminediro/iouring_server/server"
 )
 
 func main() {
 	server.IncreaseResources()
+	sigChannel := make(chan os.Signal, 1)
 
 	l, err := server.MKRingListener(":8000")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("new ring %#v\n", l)
+
+	fmt.Printf("Listening ring %#v\n", l)
+	l.Listen()
 
 	// Enable pprof hooks
 	go func() {
@@ -24,5 +32,9 @@ func main() {
 		}
 	}()
 
-	select {}
+	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
+	<-sigChannel
+
+	l.Close()
+	fmt.Println("Thanks for using Golang!")
 }

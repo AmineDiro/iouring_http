@@ -4,7 +4,10 @@ package server
 //#include "server.h"
 //#include <liburing.h>
 import "C"
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 type RINGOP int
 
@@ -16,7 +19,7 @@ const (
 
 type IOURing struct {
 	socketFD int
-	conns    []int
+	nbconns  int
 }
 
 func MkRing(socketFD int) (*IOURing, error) {
@@ -26,26 +29,28 @@ func MkRing(socketFD int) (*IOURing, error) {
 	}
 	return &IOURing{
 		socketFD: socketFD,
-		conns:    make([]int, 10000),
 	}, nil
 }
 
 func (r *IOURing) Run() {
-	go r.accept()
-	go r.getConn()
+	go r.loop()
 }
 
-func (r *IOURing) accept() {
-	C.ring_accept(C.int(r.socketFD))
+func (r *IOURing) loop() {
+	C.ring_loop(C.int(r.socketFD))
 }
 
 func (r *IOURing) getConn() {
 	// TODO : Hot loop do in C and callback into go ?
 	for {
 		connFD := int(C.completion_entry())
-		r.conns = append(r.conns, connFD)
-		if len(r.conns)%10 == 0 {
-			fmt.Println("NB conns : ", len(r.conns))
+		if connFD == -1 {
+			log.Println("bad response")
+		} else {
+			r.nbconns += 1
+			if r.nbconns%100 == 0 {
+				log.Println("NB conns : ", r.nbconns)
+			}
 		}
 	}
 

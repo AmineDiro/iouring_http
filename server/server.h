@@ -1,6 +1,6 @@
 int ring_init();
 
-void ring_accept(int fd);
+void ring_loop(int fd);
 
 int completion_entry();
 

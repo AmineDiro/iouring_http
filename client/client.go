@@ -52,8 +52,6 @@ func main() {
 
 	log.Printf("Finished initializing %d connections", len(conns))
 
-	select {}
-
 	tts := time.Second
 	if *connections > 100 {
 		tts = time.Millisecond * 5
