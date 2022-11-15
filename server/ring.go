@@ -48,7 +48,7 @@ func Read_callback(iovec *C.char, length C.int) {
 	// from memorypool
 	// readLength := int(length)
 	// buff := make([]byte, readLength)
-	// copy(buff, (*(*[128]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
+	// copy(buff, (*(*[129]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
 
 	buff := C.GoBytes(unsafe.Pointer(iovec), length)
 	fmt.Printf("Received :%s\n", buff)

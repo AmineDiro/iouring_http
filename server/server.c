@@ -7,7 +7,7 @@
 #include "_cgo_export.h"
 
 #define NENTRIES 8192
-#define READ_SIZE 1024
+#define READ_SIZE 100
 
 #define EVENT_TYPE_ACCEPT 0
 #define EVENT_TYPE_READ 1
