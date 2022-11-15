@@ -125,7 +125,7 @@ void ring_loop(int socket_fd)
 
         case EVENT_TYPE_ACCEPT:
             nb_conns += 1;
-            if (nb_conns % 10 == 0)
+            if (nb_conns % 100 == 0)
             {
                 fprintf(stderr, "Nconns: %d\n", nb_conns);
             }
@@ -136,7 +136,6 @@ void ring_loop(int socket_fd)
 
         case EVENT_TYPE_READ:
             // TODO: call the read_callback from GOLANG
-            // fprintf(stderr, "Receiv: %s\n", req->iov[0].iov_base);
             Read_callback((char *)req->iov[0].iov_base, READ_SIZE);
             read_entry(req->client_socket_fd);
             free(req->iov[0].iov_base);
