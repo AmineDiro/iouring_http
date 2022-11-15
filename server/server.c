@@ -40,7 +40,7 @@ static void accept_entry(int socket_fd, struct sockaddr_in *client_addr, socklen
     io_uring_prep_accept(sqe, socket_fd, (struct sockaddr *)client_addr,
                          client_addr_len, 0);
 
-    struct request *req = malloc(sizeof(*req));
+    struct request *req = (struct request *)malloc(sizeof(*req));
     req->event_type = EVENT_TYPE_ACCEPT;
 
     io_uring_sqe_set_data(sqe, (void *)req);

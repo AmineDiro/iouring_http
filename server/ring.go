@@ -44,11 +44,13 @@ func charToBytes(src *C.char, sz int) []byte {
 
 //export Read_callback
 func Read_callback(iovec *C.char, length C.int) {
+	// TODO : Use some kind of preallocated buffer
+	// from memorypool
 	// readLength := int(length)
 	// buff := make([]byte, readLength)
+	// copy(buff, (*(*[128]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
 
-	// copy(buff, (*(*[1024]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
-	buff := charToBytes(iovec, int(length))
+	buff := C.GoBytes(unsafe.Pointer(iovec), length)
 	fmt.Printf("Received :%s\n", buff)
 
 }
