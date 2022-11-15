@@ -8,6 +8,7 @@
 
 #define NENTRIES 8192
 #define READ_SIZE 1024
+
 #define EVENT_TYPE_ACCEPT 0
 #define EVENT_TYPE_READ 1
 #define EVENT_TYPE_WRITE 2
@@ -30,16 +31,14 @@ static void fatal_error(const char *syscall)
     exit(1);
 }
 
-static void multishot_accept_entry(int socket_fd)
+static void accept_entry(int socket_fd, struct sockaddr_in *client_addr, socklen_t *client_addr_len)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
 
     // multishot will fire a cqe everytime a conn comes in
     // NOTE: we don't care abour the client_addr and client_addr_len
-    io_uring_prep_multishot_accept(sqe, socket_fd, (struct sockaddr *)&client_addr,
-                                   &client_addr_len, 0);
+    io_uring_prep_accept(sqe, socket_fd, (struct sockaddr *)client_addr,
+                         client_addr_len, 0);
 
     struct request *req = malloc(sizeof(*req));
     req->event_type = EVENT_TYPE_ACCEPT;
@@ -69,6 +68,8 @@ int read_entry(int client_socket_fd)
 
 int completion_entry()
 {
+
+    struct io_uring_cqe *cqe;
     int wait_success = io_uring_wait_cqe(&ring, &cqe);
     if (wait_success == 0)
     {
@@ -87,10 +88,11 @@ int completion_entry()
 
 int ring_init()
 {
+
     struct io_uring_params params;
     memset(&params, 0, sizeof(params));
 
-    // enables kernel thread polling => NO SYSCALL for submission
+    // Enables kernel thread polling => NO SYSCALL for submission
     // Needs root priviliges
     // params.flags |= IORING_SETUP_SQPOLL;
 
@@ -99,11 +101,14 @@ int ring_init()
 
 void ring_loop(int socket_fd)
 {
-    struct io_uring_cqe *cqe;
+    int nb_conns = 0;
 
-    multishot_accept_entry(socket_fd);
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
 
-    while (true)
+    accept_entry(socket_fd, &client_addr, &client_addr_len);
+
+    while (1)
     {
         int ret = io_uring_wait_cqe(&ring, &cqe);
         struct request *req = (struct request *)cqe->user_data;
@@ -117,22 +122,30 @@ void ring_loop(int socket_fd)
         }
         switch (req->event_type)
         {
+
         case EVENT_TYPE_ACCEPT:
-            fprintf(stderr, "Accepted conn: %d\n",cqe->res);
+            nb_conns += 1;
+            if (nb_conns % 10 == 0)
+            {
+                fprintf(stderr, "Nconns: %d\n", nb_conns);
+            }
             read_entry(cqe->res);
+            accept_entry(socket_fd, &client_addr, &client_addr_len);
             free(req);
             break;
 
         case EVENT_TYPE_READ:
             // TODO: call the read_callback from GOLANG
             // fprintf(stderr, "Receiv: %s\n", req->iov[0].iov_base);
-            Read_callback((char *)req->iov[0].iov_base,READ_SIZE);
+            Read_callback((char *)req->iov[0].iov_base, READ_SIZE);
             read_entry(req->client_socket_fd);
             free(req->iov[0].iov_base);
             free(req);
+            break;
         default:
             break;
         }
+
         io_uring_cqe_seen(&ring, cqe);
     }
 }

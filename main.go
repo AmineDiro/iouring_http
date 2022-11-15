@@ -21,7 +21,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
 
 	fmt.Printf("Listening ring %#v\n", l)
 	l.Listen()
@@ -35,6 +34,8 @@ func main() {
 
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	<-sigChannel
+
+	l.Close()
 
 	// mux := http.NewServeMux()
 	// mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
