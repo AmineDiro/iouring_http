@@ -11,7 +11,7 @@ For now we will use `liburing` which means we are using CGO.
 TCP based iouring server: 
 - [x] Init ring in C
 - [x] Ring based TCP listener 
-- [ ] Read continuously from conns
-- [ ] Use the 
+- [ ] Stop all goroutines before closing the ring
+- [ ] Read continuously from conns ??
 Websocket : 
 - [ ] Upgrade the connection to WS ?? 

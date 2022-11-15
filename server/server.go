@@ -68,7 +68,7 @@ func (rl *RingListener) Addr() net.Addr { return nil }
 // Either we continuously submit
 func (rl *RingListener) Listen() {
 	// Run the accept and printing of conns
-	rl.ring.Run()
+	go rl.ring.loop()
 }
 
 // Starts a socket and binds it to the address

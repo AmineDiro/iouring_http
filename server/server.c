@@ -4,6 +4,7 @@
 #include <liburing.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "_cgo_export.h"
 
 #define NENTRIES 8192
 #define READ_SIZE 1024
@@ -124,7 +125,8 @@ void ring_loop(int socket_fd)
 
         case EVENT_TYPE_READ:
             // TODO: call the read_callback from GOLANG
-            fprintf(stderr, "Receiv: %s\n", req->iov[0].iov_base);
+            // fprintf(stderr, "Receiv: %s\n", req->iov[0].iov_base);
+            Read_callback((char *)req->iov[0].iov_base,READ_SIZE);
             read_entry(req->client_socket_fd);
             free(req->iov[0].iov_base);
             free(req);

@@ -7,6 +7,7 @@ import "C"
 import (
 	"fmt"
 	"log"
+	"unsafe"
 )
 
 type RINGOP int
@@ -32,12 +33,24 @@ func MkRing(socketFD int) (*IOURing, error) {
 	}, nil
 }
 
-func (r *IOURing) Run() {
-	go r.loop()
+func (r *IOURing) loop() {
+	// Starts the ring loop
+	C.ring_loop(C.int(r.socketFD))
 }
 
-func (r *IOURing) loop() {
-	C.ring_loop(C.int(r.socketFD))
+func charToBytes(src *C.char, sz int) []byte {
+	return C.GoBytes(unsafe.Pointer(src), C.int(sz))
+}
+
+//export Read_callback
+func Read_callback(iovec *C.char, length C.int) {
+	// readLength := int(length)
+	// buff := make([]byte, readLength)
+
+	// copy(buff, (*(*[1024]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
+	buff := charToBytes(iovec, int(length))
+	fmt.Printf("Received :%s\n", buff)
+
 }
 
 func (r *IOURing) getConn() {

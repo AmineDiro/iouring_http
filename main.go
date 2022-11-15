@@ -21,6 +21,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer l.Close()
 
 	fmt.Printf("Listening ring %#v\n", l)
 	l.Listen()
@@ -35,6 +36,19 @@ func main() {
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	<-sigChannel
 
-	l.Close()
-	fmt.Println("Thanks for using Golang!")
+	// mux := http.NewServeMux()
+	// mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+	// 	// The "/" pattern matches everything, so we need to check
+	// 	// that we're at the root here.
+	// 	if req.URL.Path != "/" {
+	// 		http.NotFound(w, req)
+	// 		return
+	// 	}
+	// 	fmt.Fprintf(w, "hello io_uring!\n")
+	// })
+
+	// s := http.Server{Handler: mux}
+	// if err := s.Serve(l); err != nil {
+	// 	log.Fatal(err)
+	// }
 }
