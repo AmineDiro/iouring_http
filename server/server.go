@@ -1,10 +1,24 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
-	"syscall"
+	"unsafe"
+)
+
+//#cgo LDFLAGS: -luring
+//#include "server.h"
+//#include <liburing.h>
+import "C"
+
+type RINGOP int
+
+const (
+	ACCEPT RINGOP = 1 + iota
+	READ
+	WRITE
 )
 
 const (
@@ -12,102 +26,80 @@ const (
 	SOReuseport int = 0x0F
 )
 
+var (
+	connChan chan RingConn
+)
+
 type RingListener struct {
-	socketFD int
-	ring     *IOURing
-	conns    chan net.Conn
+	socketFD   int
+	ringCtx    context.Context
+	cancelFunc context.CancelFunc
 }
 
-// Increase resources limitations
-
-func IncreaseResources() {
-	var rLimit syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		panic(err)
+// Init the ring and the communication channels
+func Init() error {
+	ret := int(C.ring_init())
+	if ret != 0 {
+		return fmt.Errorf("error in ring_init")
 	}
-	rLimit.Cur = rLimit.Max
-	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		panic(err)
-	}
-
+	connChan = make(chan RingConn, MAXCONN)
+	return nil
 }
-
 func MKRingListener(addr string) (*RingListener, error) {
 	// Create The TCP Socket + Listen syscall
 	socketFD, err := bindTCPSocket(addr)
 	if err != nil {
 		return nil, err
 	}
-	// Creating Ring
-	ring, err := MkRing(socketFD)
-	if err != nil {
+	// Creating Ring, setting up communication channels
+	if err = Init(); err != nil {
 		return nil, err
 	}
 
+	ringCtx, cancel := context.WithCancel(context.Background())
 	return &RingListener{
-		socketFD: socketFD,
-		ring:     ring,
-		conns:    make(chan net.Conn, MAXCONN),
+		socketFD:   socketFD,
+		ringCtx:    ringCtx,
+		cancelFunc: cancel,
 	}, nil
 }
 
+func (rl *RingListener) Listen() {
+	// Start the ring Loop in C
+	go C.ring_loop(C.int(rl.socketFD))
+}
+
 // Called by the server to get the new accepted conns
-func (rl *RingListener) Accept() (net.Conn, error) { return <-rl.conns, nil }
+func (rl *RingListener) Accept() (RingConn, error) {
+	conn := <-connChan
+	fmt.Printf("Accepted conn : %#v\n", conn)
+	return conn, nil
+}
 
 // Closes the listener
-func (rl *RingListener) Close() error {
+func (rl *RingListener) Close() {
+	rl.cancelFunc()
 	log.Println("Closing the ring")
-	rl.ring.Close()
-	return nil
+	C.ring_close()
 }
 
 // Gets the formated address
 func (rl *RingListener) Addr() net.Addr { return nil }
 
-// Start Listening by calling into the C liburing
-// Either we continuously submit
-func (rl *RingListener) Listen() {
-	// Run the accept and printing of conns
-	go rl.ring.loop()
+//export accept_callback
+func accept_callback(connFD C.int) {
+	connChan <- RingConn{client_socket: int(connFD)}
 }
 
-// Starts a socket and binds it to the address
-// returns the file descriptor of the binded socket
-func bindTCPSocket(address string) (int, error) {
-	// Create a socket
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
-	if err != nil {
-		return -1, fmt.Errorf("could not open socket")
-	}
-	netAddr, err := net.ResolveTCPAddr("tcp", address)
-	if err != nil {
-		return -1, fmt.Errorf("could not open socket")
-	}
+//export read_callback
+func read_callback(iovec *C.char, length C.int) {
+	// TODO : Use some kind of preallocated buffer
+	// from memorypool
+	// readLength := int(length)
+	// buff := make([]byte, readLength)
+	// copy(buff, (*(*[129]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
 
-	var ipAddr [4]byte
-	copy(ipAddr[:], netAddr.IP)
-	sockAddr := &syscall.SockaddrInet4{
-		Port: netAddr.Port,
-		Addr: ipAddr,
-	}
-	// Set socket options
-
-	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	if err != nil {
-		syscall.Close(fd)
-		return -1, err
-	}
-	// Bind socket to the adress
-	if err := syscall.Bind(fd, sockAddr); err != nil {
-		syscall.Close(fd)
-		return -1, err
-	}
-
-	// Listen of the socket
-	if err := syscall.Listen(fd, MAXCONN); err != nil {
-		syscall.Close(fd)
-		return -1, err
-	}
-	return fd, nil
+	buff := C.GoBytes(unsafe.Pointer(iovec), length)
+	fmt.Printf("Received :%s\n", buff)
 
 }

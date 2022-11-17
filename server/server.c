@@ -60,7 +60,7 @@ int read_entry(int client_socket_fd)
 
     // Using readv instead of read uses iovec buffer
     // good for scattered io read and writes
-    io_uring_prep_readv(sqe, client_socket_fd, &req->iov[0], 1, 0);
+    io_uring_prep_readv(sqe, client_socket_fd, req->iov, 1, 0);
     io_uring_sqe_set_data(sqe, req);
     io_uring_submit(&ring);
     return 0;
@@ -68,7 +68,6 @@ int read_entry(int client_socket_fd)
 
 int completion_entry()
 {
-
     struct io_uring_cqe *cqe;
     int wait_success = io_uring_wait_cqe(&ring, &cqe);
     if (wait_success == 0)
@@ -98,6 +97,7 @@ int ring_init()
 
     return io_uring_queue_init_params(NENTRIES, &ring, &params);
 }
+
 
 void ring_loop(int socket_fd)
 {
@@ -129,14 +129,16 @@ void ring_loop(int socket_fd)
             {
                 fprintf(stderr, "Nconns: %d\n", nb_conns);
             }
-            read_entry(cqe->res);
+            
+            // Result holds the client's socket FD
+            accept_callback(cqe->res);
             accept_entry(socket_fd, &client_addr, &client_addr_len);
             free(req);
             break;
 
         case EVENT_TYPE_READ:
-            // TODO: call the read_callback from GOLANG
-            Read_callback((char *)req->iov[0].iov_base, READ_SIZE);
+            // TODO: call the Read from GOLANG and track the data
+            read_callback((char *)req->iov[0].iov_base, READ_SIZE);
             read_entry(req->client_socket_fd);
             free(req->iov[0].iov_base);
             free(req);

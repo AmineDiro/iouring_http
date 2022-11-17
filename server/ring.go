@@ -10,14 +10,6 @@ import (
 	"unsafe"
 )
 
-type RINGOP int
-
-const (
-	ACCEPT RINGOP = 1 + iota
-	READ
-	WRITE
-)
-
 type IOURing struct {
 	socketFD int
 	nbconns  int
@@ -40,19 +32,6 @@ func (r *IOURing) loop() {
 
 func charToBytes(src *C.char, sz int) []byte {
 	return C.GoBytes(unsafe.Pointer(src), C.int(sz))
-}
-
-//export Read_callback
-func Read_callback(iovec *C.char, length C.int) {
-	// TODO : Use some kind of preallocated buffer
-	// from memorypool
-	// readLength := int(length)
-	// buff := make([]byte, readLength)
-	// copy(buff, (*(*[129]byte)(unsafe.Pointer(iovec)))[:readLength:readLength])
-
-	buff := C.GoBytes(unsafe.Pointer(iovec), length)
-	fmt.Printf("Received :%s\n", buff)
-
 }
 
 func (r *IOURing) getConn() {

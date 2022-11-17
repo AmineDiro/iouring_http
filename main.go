@@ -21,9 +21,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Printf("Listening ring %#v\n", l)
+	fmt.Printf("Listening ring %v\n", l)
 	l.Listen()
+
+	go func() {
+		for {
+
+			l.Accept()
+		}
+	}()
 
 	// Enable pprof hooks
 	go func() {
