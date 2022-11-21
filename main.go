@@ -10,14 +10,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/aminediro/iouring_server/server"
+	ringListener "github.com/aminediro/iouring_server/server"
 )
 
 func main() {
-	server.IncreaseResources()
+	// runtime.GOMAXPROCS(2)
+
+	ringListener.IncreaseResources()
 	sigChannel := make(chan os.Signal, 1)
 
-	l, err := server.MKRingListener(":8000")
+	l, err := ringListener.MKRingListener(":8000")
 	if err != nil {
 		panic(err)
 	}
@@ -26,8 +28,15 @@ func main() {
 
 	go func() {
 		for {
+			conn, _ := l.Accept()
+			b := make([]byte, 512)
+			go func() {
+				for {
 
-			l.Accept()
+					_, _ = conn.Read(b)
+				}
+			}()
+			conn.Close()
 		}
 	}()
 

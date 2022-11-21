@@ -52,7 +52,7 @@ func main() {
 
 	log.Printf("Finished initializing %d connections", len(conns))
 
-	tts := time.Second
+	tts := time.Millisecond * 10
 	if *connections > 100 {
 		tts = time.Millisecond * 5
 	}
@@ -66,7 +66,6 @@ func main() {
 				os.Exit(1)
 			}
 
-			time.Sleep(1 * time.Second)
 		}
 	}
 

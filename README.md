@@ -7,15 +7,16 @@ We want to use  the new`io_uring` ring buffer to build highly concurrent ws serv
 
 For now we will use `liburing` which means we are using CGO. 
 
-## Design: 
+## system design : 
+
 ringListener 
 -> Http server will serve from the listener 
 -> The listener will spawn a handler func and get the ringConnection
+
 **OPTION 1 :**
 -> The goroutine could read directly from the conn :
- Thid should be possible 
-We could maintain a map[FD]chan []bytes. The callbacks will push data to a chan per conn. Internally the RingConn would read from this channel
-This is not scalable => TOOO many goroutines and memory footprint
+    We could maintain a map[FD]chan []bytes. The callbacks will push data to a chan per conn. Internally the RingConn would read from this channel
+    This is not scalable => TOOO many goroutines and memory footprint
 
 **OPTION 2:**
 -> Handle the connection in a separate structure: (RingConnHandler???) 
