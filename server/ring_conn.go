@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -18,19 +19,18 @@ type RingConn struct {
 // Read reads data from the connection.
 // The conn submits to the ring and then waits on
 func (rc RingConn) Read(b []byte) (n int, err error) {
+	connMap.mu.RLock()
 
-	connMap.mu.Lock()
-	connMap.chanMap[rc.clientSocketFD] = <-chanPool
-	connMap.mu.Unlock()
+	//Submit read request
+	rcChan, ok := connMap.chanMap[rc.clientSocketFD]
+	connMap.mu.RUnlock()
 
-	log.Println("HEERE")
-	time.Sleep(10 * time.Millisecond)
-	C.read_entry(C.int(rc.clientSocketFD))
-
-	b = <-connMap.chanMap[rc.clientSocketFD]
-	chanPool <- connMap.chanMap[rc.clientSocketFD]
-
+	if !ok {
+		return -1, fmt.Errorf("can't find channel for conn in map")
+	}
+	b = <-rcChan
 	log.Printf("FD: %d , msg : %s", rc.clientSocketFD, string(b))
+
 	return len(b), nil
 }
 

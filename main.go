@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
+	"net"
 	_ "net/http/pprof"
+	"time"
 
 	"os"
 	"os/signal"
@@ -12,6 +12,22 @@ import (
 
 	ringListener "github.com/aminediro/iouring_server/server"
 )
+
+func handler(conn net.Conn) {
+	b := make([]byte, 512)
+	for {
+		_, _ = conn.Read(b)
+		// conn.Close()
+		time.Sleep(time.Millisecond * 10)
+	}
+}
+
+func serve(l net.Listener) {
+	for {
+		conn, _ := l.Accept()
+		go handler(conn)
+	}
+}
 
 func main() {
 	// runtime.GOMAXPROCS(2)
@@ -24,28 +40,15 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("Listening ring %v\n", l)
-	l.Listen()
-
-	go func() {
-		for {
-			conn, _ := l.Accept()
-			b := make([]byte, 512)
-			go func() {
-				for {
-
-					_, _ = conn.Read(b)
-				}
-			}()
-			conn.Close()
-		}
-	}()
+	go l.Listen()
+	go serve(l)
 
 	// Enable pprof hooks
-	go func() {
-		if err := http.ListenAndServe("localhost:6060", nil); err != nil {
-			log.Fatalf("pprof failed: %v", err)
-		}
-	}()
+	// go func() {
+	// 	if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+	// 		log.Fatalf("pprof failed: %v", err)
+	// 	}
+	// }()
 
 	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
 	<-sigChannel

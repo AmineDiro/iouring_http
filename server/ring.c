@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include "_cgo_export.h"
 
-#define NENTRIES 1
+#define NENTRIES 2048
 #define READ_SIZE 512
 
 #define EVENT_TYPE_ACCEPT 0
@@ -31,7 +31,7 @@ static void fatal_error(const char *syscall)
     exit(1);
 }
 
-static void accept_entry(int socket_fd, struct sockaddr_in *client_addr, socklen_t *client_addr_len)
+static void multishot_accept_entry(int socket_fd, struct sockaddr_in *client_addr, socklen_t *client_addr_len)
 {
     struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
 
@@ -107,14 +107,15 @@ void ring_loop(int socket_fd)
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
 
-    accept_entry(socket_fd, &client_addr, &client_addr_len);
+    multishot_accept_entry(socket_fd, &client_addr, &client_addr_len);
 
     while (1)
     {
         int ret = io_uring_wait_cqe(&ring, &cqe);
         struct request *req = (struct request *)cqe->user_data;
-        if (ret < 0)
+        if (ret < 0){
             fatal_error("io_uring_wait_cqe");
+        }
         if (cqe->res < 0)
         {
             fprintf(stderr, "Async request failed: %s for event: %d\n",
@@ -126,25 +127,25 @@ void ring_loop(int socket_fd)
 
         case EVENT_TYPE_ACCEPT:
             nb_conns += 1;
-            // if (nb_conns % 1 == 0)
-            // {
-            //     fprintf(stderr, "Nconns: %d\n", nb_conns);
-            // }
-
-            // Result holds the client's socket FD
+            if (nb_conns % 100 == 0)
+            {
+                fprintf(stderr, "Nconns: %d\n", nb_conns);
+            }
 
             accept_callback(cqe->res);
+            // DEBug
+            read_entry(cqe->res);
             break;
 
         case EVENT_TYPE_READ:
             // TODO: call the Read from GOLANG and track the data
             read_callback(req->client_socket_fd,(char *)req->iov[0].iov_base, READ_SIZE);
-            // read_entry(req->client_socket_fd);
+            read_entry(req->client_socket_fd);
+
             free(req->iov[0].iov_base);
             free(req);
             break;
         default:
-            fprintf(stderr, "event type: %d\n",req->event_type);
             break;
         }
 
